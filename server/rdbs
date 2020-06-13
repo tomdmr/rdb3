@@ -1,0 +1,88 @@
+#!/usr/bin/python3
+##################
+from configparser import ConfigParser
+from datetime import datetime
+
+import sys
+import os
+
+try:
+    #print(sys.argv[1])
+    hname = sys.argv[1]
+    pass
+except:
+    print( "No hostname given. Failing")
+    exit
+
+myloc = os.path.dirname(os.path.realpath(__file__))
+RDB='/usr/bin/rdiff-backup'
+# instantiate
+config = ConfigParser()
+# parse existing file
+config.read(myloc+'/rdb_server.ini')
+
+try:
+    hx   = config[hname]
+    repo = hx.get('repository')
+except:
+    print("No config found for host ", hname)
+    exit
+
+newsubsok = hx.getboolean('newsubsok', fallback=False)
+
+# print repo
+args = os.environ['SSH_ORIGINAL_COMMAND'].split()
+#with open('cmdlog','a') as f:
+#    f.write('%s: Called with %s\n' % (datetime.now(), os.environ['SSH_ORIGINAL_COMMAND']))
+#    f.close()
+
+
+#
+# Check all allowed commands
+#
+if(args[0] == 'repo'):
+    # Request for repository
+    print( repo )
+elif(args[0]=='rdiff-backup'):
+    # Old style start
+    #print('rdiff-backup request')
+    L = [ RDB ]
+    #L = ['/bin/echo']
+    L.append('--server')
+    L.append('--restrict')
+    L.append(repo)
+    
+    # print(L)
+    os.execv(L[0], L)
+elif(args[0] == 'test'):
+    L = [ RDB ]
+    L.append('--test-server')
+    L.append(repo)
+    print(L)
+    #os.execv(L[0], L)
+elif(args[0] == 'backup'):
+    #print('backup request')
+    #L = ['/bin/echo']
+    L = [ RDB ]
+    L.append('--server')
+    if newsubsok: 
+        L.append('--restrict') # only restrict,  this is for dbg
+    else:
+        L.append('--restrict-update-only')
+    L.append(repo)
+    
+    os.execv(L[0], L)
+elif(args[0] == 'verify') or (args[0]=='restore'):
+    # print('backup request')
+    L = [ RDB ]
+    #L = ['/bin/echo']
+    L.append('--server')
+    L.append('--restrict-read-only')
+    L.append(repo)
+    
+    os.execv(L[0], L)
+else:
+    print('something else wanted')
+    
+#except Exception as e:
+#   print( "Something failed:" + str(e))

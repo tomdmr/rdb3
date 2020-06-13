@@ -1,0 +1,229 @@
+#!/usr/bin/python3
+##################
+# Clean new implementation from scratch after 
+# Win10 machine crashed. Yes I know.
+
+from configparser import ConfigParser
+import shlex
+import subprocess
+import sys
+import getpass
+from os import environ, path, access, W_OK
+import getopt
+import logging
+import logging.config
+import re
+import socket
+
+def sendXMPP(rcpt, message):
+    """
+      sendXMPP: Send a single message to a reciepent and close again. This is not useful for many messages, only intended for sending one single message
+    """
+    print("sending to " + rcpt)
+    print(message)
+    xmpp=subprocess.Popen(["/root/bin/go-sendxmpp", 
+        '-f', '/root/.sendxmpprc',
+        rcpt ], 
+        stdin =subprocess.PIPE, 
+        stdout =subprocess.PIPE,
+        universal_newlines=True,
+        bufsize=0)
+    xmpp.stdin.write(message)
+    xmpp.stdin.close()
+    print('ready jabber')
+
+#
+# Read commandline and find config script
+#
+HOME     = path.expanduser('~') # environ['HOME']
+HOSTNAME = socket.gethostname()
+RCPT     = 'tom@demmer.inet2.org'
+
+try:
+    USER = environ['USER']
+except: 
+    USER = getpass.getuser()
+#
+try:
+    options, remainder = getopt.getopt(
+        sys.argv[1:],
+        'c:v',
+        ['config-file=',
+         'verbose',
+         ])
+except getopt.GetoptError as err:
+    print('ERROR:', err)
+    sys.exit(1)
+#
+config_file=[]
+for opt, arg in options:
+    if opt in ('-c', '--config-file'):
+        config_file.append(arg)
+        print(config_file)
+    elif opt in ('-v', '--verbose'):
+        verbose = True
+
+config = ConfigParser()
+#
+# Pre-Load system variables
+#
+config['DEFAULT']['HOME'] = HOME
+config['DEFAULT']['USER'] = USER
+#
+# Not quite clear: Reads the first found, reads all, or what?
+#
+if config_file == []:
+    cfg = config.read([ '/etc/rdb3/rdb.ini', 
+                  HOME+'/.config/rdb3/rdb.ini',
+                  'rdb.ini'])
+    if cfg==[]:
+        print('No rdb.ini found in /etc/rdb3, ~/.config or current directory. Giving up')
+        sys.exit(2)
+else:
+    cfg = config.read(config_file)
+    if cfg==[]:
+        print('No ini files found in ', config_file, ' Giving up')
+        sys.exit(2)
+
+#
+# Configure logging
+#
+#logging.basicConfig(format='%(asctime)s: %(message)s')
+#logger = logging.getLogger('rdb3')
+#logger.setLevel('WARN')
+#
+# Load configuration, general settings
+#
+general = config['general']
+logging.config.fileConfig( general.get('logging') )
+# create logger
+logger = logging.getLogger('root')
+
+rdb    = general.get('rdiff-backup', '/usr/bin/rdiff-backup')
+server = general.get('server', '')
+user   = general.get('user', USER)
+# The next two are mandatory
+dry_run = general.get('dry_run', 0)
+#verbose = general.get('loglevel','WARN')
+glopts  = general.get('options','')
+
+#logger.setLevel(verbose)
+# Anything better? /var/log/rdb3 ??
+logdir  = general.get('logdir', '/tmp')
+logf = open(logdir + '/logf', 'w')
+logger.debug('Done ini-Files')
+
+#
+# test directory / server
+#
+if server=='':
+    # Local repo. Check if it exists
+    repo   = general.get('repository')
+    if not path.isdir(repo):
+        logger.critical('Repository %s seems not to exist', repo)
+        sendXMPP(RCPT, HOSTNAME + ': rdb3 repository does not exist')
+        raise
+    # check if writeable
+    if not access(repo, W_OK):
+        logger.critical('Writing to %s seems to be forbidden', repo)
+        sendXMPP(RCPT, HOSTNAME + ': rdb3 cannot write to repository')
+        raise
+    dst=repo
+    SCH=' '
+else:
+    key = general['key']
+    logger.info('SSH-Key: %s', key)
+    logger.info('Server: %s', server)
+    logger.info('User  : %s', user)
+    if user !='' : server = user+ '@' + server
+    cmd = 'ssh -i %s %s repo' % (key, server)
+    logger.debug('Getting repo with %s', cmd)
+    p = subprocess.run(shlex.split(cmd), stdout = subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines = True) # encoding='utf-8')
+    if p.returncode == 0:
+        repo = p.stdout.strip()
+        if not repo.endswith('/'): repo = repo + '/'
+        logger.info('Repo  : %s', repo)
+        dst = server + '::' + repo
+        logger.info('dst   : %s', dst)
+        # prepare test
+        SCH = ' --remote-schema "ssh -i %s -C %%s test"' % (key)
+        cmd = rdb + SCH + ' --test-server ' + dst
+        logger.debug('Testing server with %s', cmd)
+        p = subprocess.run( shlex.split(cmd),stdout = subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines = True) # encoding='utf-8' )
+        if p.returncode !=0:
+            logger.critical('Could no start server: %s', p.stderr)
+            sendXMPP(RCPT, HOSTNAME + ': Server does not handle test')
+            sys.exit(1)
+
+        SCH = ' --remote-schema "ssh -i %s -C %%s backup"' % (key)
+        logger.debug('Using remote scheme %s', SCH)
+    else:
+        sendXMPP(RCPT, HOSTNAME + ': cannot contact server')
+        logger.critical('Problem contacting server: %s', p.stderr)
+        sys.exit(1)
+#
+# All preps done, now we can start running jobs
+#
+jobs = general.get('jobs','').split(';')
+# Run all jobs
+for job in jobs:
+    logger.info('Preparing job %s', job)
+    try:
+        jobc  = config[job]
+        local = jobc['local']
+    except:
+        logger.critical('Job section [%s] does not exist or badly configured',job)
+        sendXMPP(RCPT, HOSTNAME + ': Missing or malformed job configuration')
+        raise
+    # make remote path
+    remote = jobc.get('remote', local).replace('/','_')
+    remote = re.sub(r'^_', '', remote)
+    #
+    lopts  = jobc.get('options', '')
+    # Get all OPTxx keys
+    i = 0
+    while True:
+        key = 'OPT%02d' % (i)
+        val = jobc.get(key, '')
+        if val == '':
+            break
+        else:
+            # add to opts
+            lopts += ' ' + val
+            i += 1
+    #
+    # run pre-job
+    precmd  = jobc.get('precmd', '')
+    if precmd != '':
+        logger.info('Running pre command <%s>', precmd)
+        args = shlex.split(precmd)
+        p=subprocess.run(args,stdout=logf, stderr=subprocess.PIPE, universal_newlines = True) # encoding='utf-8')
+        if p.returncode != 0:
+            sendXMPP(RCPT, HOSTNAME + ': Failed pre-command')
+            logger.critical('Precommand for job %s failed, stderr=%s', job, p.stderr)
+    # run main job
+    cmd = rdb + ' ' + SCH + ' ' + glopts + ' ' + lopts + ' '
+    cmd += local + ' ' + dst + remote
+    logger.info('running <%s>', shlex.split(cmd))
+    p = subprocess.run(shlex.split(cmd), stdout=logf, stderr=logf, universal_newlines = True) # encoding='utf-8')
+    if p.returncode !=0:
+        logger.critical('Backup failed, check logs')
+        sendXMPP(RCPT, HOSTNAME + ': rdb3 failed')
+        sys.exit(1)
+    # run post-job
+    postcmd = jobc.get('postcmd', '')
+    if postcmd != '':
+        logger.info('Running post command <%s>', postcmd)
+        args = shlex.split(postcmd)
+        print(args)
+        p=subprocess.run(args,stdout=logf, stderr=subprocess.PIPE, universal_newlines = True) # encoding='utf-8')
+        if p.returncode != 0:
+            sendXMPP(RCPT, HOSTNAME+': Failed post-command')
+            logger.critical('Postcommand failed for job %s, stderr=%s', job, p.stderr)
+# Clean up
+logger.info('Finished all jobs')
+logger.info('Sending to jabber')
+#print("Sending xmpp")
+sendXMPP( RCPT, HOSTNAME +": rdb3 finished OK")
+logger.info('back from jabber')
+logf.close()
