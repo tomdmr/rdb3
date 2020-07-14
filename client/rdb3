@@ -100,9 +100,9 @@ try:
     logger = logging.getLogger('root')
 except:
     # Create a basic logger to stderr, with debug level,
+    logging.basicConfig(format='%(asctime)s - %(levelname)s: %(message)s', level=logging.DEBUG)
     # so hopefully someone hears us
     logger = logging.getLogger();
-    logger.setLevel(1)
 #
 # Configure logging
 #
@@ -122,8 +122,6 @@ alert   = general.get('alert', None)
 logdir  = general.get('logdir', '/tmp')
 logf = open(logdir + '/logf', 'w')
 logger.debug('Done ini-Files')
-sys.exit(255)
-#####################################################################################################################################
 
 #
 # test directory / server
