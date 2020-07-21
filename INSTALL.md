@@ -1,5 +1,19 @@
 # Install client
 
+You need to have of course `rdiff-backup` installed. I am using 1.2.8
+because the new 2.0 series is not yet available on my Linux systems,
+so I do not know yet if it works. A test with an 1.2.8 server and a
+2.0 client (Cygwin) failed. Reports on what needs to be changed are
+welcome.
+
+For the Python version, some 3.x version should work, I am on
+3.6. Version 2.7 will not work for sure.
+
+If you want a signalling mechanism for success/failure, you will need
+some program to send alerts. I am using `go-sendxmpp`to text to my
+prosody server. sSMTP or some SMS bridge may also work.
+
+
 # Configure client
 
 ## General Section

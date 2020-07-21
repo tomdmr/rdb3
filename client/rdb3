@@ -118,6 +118,7 @@ user    = general.get('user', USER)
 dry_run = general.get('dry_run', 0)
 glopts  = general.get('options','')
 alert   = general.get('alert', None)
+tweetOK = general.get('tweetOK', False)
 # Anything better? /var/log/rdb3 ??
 logdir  = general.get('logdir', '/tmp')
 logf = open(logdir + '/logf', 'w')
@@ -232,5 +233,6 @@ for job in jobs:
             logger.critical('Postcommand failed for job %s, stderr=%s', job, p.stderr)
 # Clean up
 logger.info('Finished all jobs')
-tweetAlert(alert, HOSTNAME +": rdb3 finished OK")
+if tweetOK:
+    tweetAlert(alert, HOSTNAME +": rdb3 finished OK")
 logf.close()
