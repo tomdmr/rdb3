@@ -15,7 +15,6 @@ except:
     exit
 
 myloc = os.path.dirname(os.path.realpath(__file__))
-RDB='/usr/bin/rdiff-backup'
 # instantiate
 config = ConfigParser()
 # parse existing file
@@ -24,19 +23,18 @@ config.read(myloc+'/rdb_server.ini')
 try:
     hx   = config[hname]
     repo = hx.get('repository')
+    # Fix to allow a different version of rdiff-backup as per ini-file
+    RDB  = hx.get('rdiff-backup', '/usr/bin/rdiff-backup')
 except:
     print("No config found for host ", hname)
     exit
 
 newsubsok = hx.getboolean('newsubsok', fallback=False)
 
-# print repo
 args = os.environ['SSH_ORIGINAL_COMMAND'].split()
 #with open('cmdlog','a') as f:
 #    f.write('%s: Called with %s\n' % (datetime.now(), os.environ['SSH_ORIGINAL_COMMAND']))
 #    f.close()
-
-
 #
 # Check all allowed commands
 #
@@ -51,18 +49,16 @@ elif(args[0]=='rdiff-backup'):
     L.append('--server')
     L.append('--restrict')
     L.append(repo)
-    
     # print(L)
     os.execv(L[0], L)
 elif(args[0] == 'test'):
+    # In this case, should we add one of --restrict* ?
+    # I wonder if this can turn into a security flaw.
     L = [ RDB ]
-    L.append('--test-server')
-    L.append(repo)
-    print(L)
-    #os.execv(L[0], L)
+    L.append('--server')
+    #print(L)
+    os.execv(L[0], L)
 elif(args[0] == 'backup'):
-    #print('backup request')
-    #L = ['/bin/echo']
     L = [ RDB ]
     L.append('--server')
     if newsubsok: 
@@ -70,7 +66,6 @@ elif(args[0] == 'backup'):
     else:
         L.append('--restrict-update-only')
     L.append(repo)
-    
     os.execv(L[0], L)
 elif(args[0] == 'verify') or (args[0]=='restore'):
     # print('backup request')
@@ -79,10 +74,7 @@ elif(args[0] == 'verify') or (args[0]=='restore'):
     L.append('--server')
     L.append('--restrict-read-only')
     L.append(repo)
-    
     os.execv(L[0], L)
 else:
     print('something else wanted')
     
-#except Exception as e:
-#   print( "Something failed:" + str(e))
