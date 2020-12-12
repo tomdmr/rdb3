@@ -1,7 +1,8 @@
 #!/usr/bin/python3
 ##################
-# Clean new implementation from scratch after 
-# Win10 machine crashed. Yes I know.
+# This is mainly a copy of the backup code. We just parse everything and then spit out
+# the commandline to restore all jobs. As restore is mostly very individual,
+# this should give people a clean starting point.
 
 from configparser import ConfigParser
 import shlex
@@ -166,77 +167,17 @@ else:
 jobs = general.get('jobs','').split(';')
 for job in jobs:
     rpath = '/root/tmp'
-    jobc = config[job]
-    local = jobc['local']
+    logger.info('Preparing job %s', job)
+    try:
+        jobc = config[job]
+        local = jobc['local']
+    except:
+        logger.critical('Job section [%s] does not exist or badly configured',job)
+        tweetAlert(alert, HOSTNAME + ': Missing or malformed job configuration')
+        raise
     remote = jobc.get('remote', local).replace('/','_')
     remote = re.sub(r'^_','',remote)
     cmd = rdb + ' -r now '+ SCH +' ' + dst + remote + ' ' + rpath + local
     print( cmd )
 
 
-sys.exit(0)
-
-jobs = general.get('jobs','').split(';')
-# Run all jobs
-for job in jobs:
-    logger.info('Preparing job %s', job)
-    try:
-        jobc  = config[job]
-        local = jobc['local']
-    except:
-        logger.critical('Job section [%s] does not exist or badly configured',job)
-        tweetAlert(alert, HOSTNAME + ': Missing or malformed job configuration')
-        raise
-    # make remote path
-    remote = jobc.get('remote', local).replace('/','_')
-    remote = re.sub(r'^_', '', remote)
-    #
-    lopts  = jobc.get('options', '')
-    # Get all OPTxx keys
-    i = 0
-    while True:
-        key = 'OPT%02d' % (i)
-        val = jobc.get(key, '')
-        if val == '':
-            break
-        else:
-            # add to opts
-            lopts += ' ' + val
-            i += 1
-    #
-    # run pre-job
-    precmd  = jobc.get('precmd', '')
-    if precmd != '':
-        logger.info('Running pre command <%s>', precmd)
-        args = shlex.split(precmd)
-        p=subprocess.run(args,stdout=logf, stderr=subprocess.PIPE, universal_newlines = True) # encoding='utf-8')
-        if p.returncode != 0:
-            tweetAlert(alert, HOSTNAME + ': Failed pre-command')
-            logger.critical('Precommand for job %s failed, stderr=%s', job, p.stderr)
-    # run main job
-    cmd = rdb + ' ' + SCH + ' ' + glopts + ' ' + lopts + ' '
-    cmd += local + ' ' + dst + remote
-    logger.info('running <%s>', shlex.split(cmd))
-    p = subprocess.run(shlex.split(cmd), stdout=logf, stderr=logf, universal_newlines = True) # encoding='utf-8')
-    if p.returncode !=0:
-        logger.critical('Backup failed, check logs')
-        tweetAlert(alert, HOSTNAME + ': rdb3 failed on job ' + job)
-        sys.exit(1)
-    # run post-job
-    postcmd = jobc.get('postcmd', '')
-    if postcmd != '':
-        logger.info('Running post command <%s>', postcmd)
-        args = shlex.split(postcmd)
-        print(args)
-        p=subprocess.run(args,stdout=logf, stderr=subprocess.PIPE, universal_newlines = True) # encoding='utf-8')
-        if p.returncode != 0:
-            tweetAlert(alert, HOSTNAME+': Failed post-command')
-            logger.critical('Postcommand failed for job %s, stderr=%s', job, p.stderr)
-# Clean up
-logger.info('Finished all jobs')
-logger.info('Sending to jabber')
-#print("Sending xmpp")
-if False:
-    tweetAlert(alert, HOSTNAME +": rdb3 finished OK")
-logger.info('back from jabber')
-logf.close()
