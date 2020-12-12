@@ -163,15 +163,17 @@ else:
 #
 # All preps done, now we can start running jobs
 #
-job = 'etc'
-rpath = '/root/tmp'
-jobc = config[job]
-local = jobc['local']
-remote = jobc.get('remote', local).replace('/','_')
-remote = re.sub(r'^_','',remote)
-cmd = rdb + ' '+ SCH +' ' + dst + remote + ' ' + rpath + local
+jobs = general.get('jobs','').split(';')
+for job in jobs:
+    rpath = '/root/tmp'
+    jobc = config[job]
+    local = jobc['local']
+    remote = jobc.get('remote', local).replace('/','_')
+    remote = re.sub(r'^_','',remote)
+    cmd = rdb + ' '+ SCH +' ' + dst + remote + ' ' + rpath + local
+    print( cmd )
 
-print( cmd )
+
 sys.exit(0)
 
 jobs = general.get('jobs','').split(';')
