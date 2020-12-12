@@ -170,7 +170,7 @@ for job in jobs:
     local = jobc['local']
     remote = jobc.get('remote', local).replace('/','_')
     remote = re.sub(r'^_','',remote)
-    cmd = rdb + ' '+ SCH +' ' + dst + remote + ' ' + rpath + local
+    cmd = rdb + ' -r now '+ SCH +' ' + dst + remote + ' ' + rpath + local
     print( cmd )
 
 
