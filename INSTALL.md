@@ -1,25 +1,59 @@
+# Prerequisites
+
+This package tries to simplify the deployment of `rdiff-backup'. The
+main scenario is several independent clients dumping their backups
+into one server machine. The assumption is, that all machines trust
+each other, so the backup in the clear is OK. The transport, however,
+is secured by encrypted `ssh` connection. For this scenario servernd
+client have to be configured and run.
+
+In case backups are stored only locally, you just need the client and
+plenty of space. And an idea, how to get the backups to some safe
+space.
+
+For the client-server scenario, `ssh' is required and configured to be
+used also password-less. The clients identify to the server with ssh-keys.
+
+On the server, you need enough disk-space, a separate user account to
+receive the data, and a cron-job to clean out old backups. In my case
+it's a RasPi 4 with a 2TB USB-disk attached. How this is off-loaded
+encrypted to the cloud is another story...
+
+`rdiff-backup` version 2.0 requires Python 3.0, so that is another
+prerequisite.
+
+# General concept
+
+The backup is triggered by either a cron- or an anacron-job. The executing user mus have rights to read all directories it wants to backup. If the backup goes to a local directory, the user needs also rw-access. This is why I prefer remote backups. 
+
+For remote backups, the client starts an `rdiff-backup` instance on
+the server. On the server-side, access rights are restricted. The
+server always starts `rdiff-backup`, and some extzra parameters can be
+applied. Adding `--restrict-update-only` rejects all delete
+requests. This means, the malware that is encrypting all your file can
+back them up, but cannot delete the still intact versions.
+
+This also implies that the `--remove-older-than`-command can only be
+issued by the server, never by the client. A cron-job on the server
+must take care of this.
+
 # Install client
 
-You need to have of course `rdiff-backup` installed. I am using 1.2.8
-because the new 2.0 series is not yet available on my Linux systems,
-so I do not know yet if it works. A test with an 1.2.8 server and a
-2.0 client (Cygwin) failed. Reports on what needs to be changed are
-welcome.
-
-For the Python version, some 3.x version should work, I am on
-3.6. Version 2.7 will not work for sure.
+There is not much installation required. You need Python 3,
+'rdiff-backup' somewhere, and the client script, `rdb3'.
 
 If you want a signalling mechanism for success/failure, you will need
 some program to send alerts. I am using `go-sendxmpp`to text to my
 prosody server. sSMTP or some SMS bridge may also work.
 
 
-# Configure client
+## Configure client
+### Logging
 
-## General Section
+### General Section
 
 
-## Job section
+### Job section
 
 
 # Install server
