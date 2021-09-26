@@ -1,6 +1,6 @@
 # Prerequisites
 
-This package tries to simplify the deployment of `rdiff-backup'. The
+This package tries to simplify the deployment of `rdiff-backup`. The
 main scenario is several independent clients dumping their backups
 into one server machine. The assumption is, that all machines trust
 each other, so the backup in the clear is OK. The transport, however,
