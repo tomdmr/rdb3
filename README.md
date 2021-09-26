@@ -1,12 +1,13 @@
 # rdb3
 
-Utility functions for running `rdiff-backup`, see INSTALL.md for more
-info. The main application scenario is to backup several clients to a
-single server. The server may off-load the repository image to cloud
-storage.
+Utility functions for running
+[`rdiff-backup`](https://rdiff-backup.net/), see INSTALL.md for more
+info on the configuration. The main application scenario is to backup
+several clients to a single server. The server may off-load the
+repository image to cloud storage.
 
 
-# Why rdiff-backup?
+## Why rdiff-backup?
 
 Because I like it. It's main feature is that it stores
 backward-deltas. This means, cleaning out old backups is simple. The
@@ -32,6 +33,6 @@ attached.
 
 But this goes to another unreliable disk? Yes, this is why my story
 does not end here. The repository on the server is reverse mounted
-with `go-encryptfs`. The encrypted image is `rsync'ed to cloud
-storage. I have paper-copies of the encryption keys and the login to
-the cloud storage...
+with [`gocryptfs`](https://github.com/rfjakob/gocryptfs). The
+encrypted image is `rsync'ed to cloud storage. I have paper-copies of
+the encryption keys and the login to the cloud storage...

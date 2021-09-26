@@ -24,7 +24,10 @@ prerequisite.
 
 # General concept
 
-The backup is triggered by either a cron- or an anacron-job. The executing user mus have rights to read all directories it wants to backup. If the backup goes to a local directory, the user needs also rw-access. This is why I prefer remote backups. 
+The backup is triggered by either a cron- or an anacron-job. The
+executing user mus have rights to read all directories it wants to
+backup. If the backup goes to a local directory, the user needs also
+rw-access. This is why I prefer remote backups.
 
 For remote backups, the client starts an `rdiff-backup` instance on
 the server. On the server-side, access rights are restricted. The
@@ -45,6 +48,23 @@ There is not much installation required. You need Python 3,
 If you want a signalling mechanism for success/failure, you will need
 some program to send alerts. I am using `go-sendxmpp`to text to my
 prosody server. sSMTP or some SMS bridge may also work.
+
+## Preparing remote access
+
+If you want to backup to a remote machine, you need a passwordless SSH-key:
+
+    ssh-keygen -t ed25119 -N '' -o ~/.ssh/key_for_backup
+
+The public part of the key must be transferred to the server, see
+`ssh-copy-id(1)` on how to do that.
+
+You also need to trust the server machine, this can be done in a first
+manual contact. Or just by
+
+    ssh -i ~/.ssh/key_for_backup user@server
+
+This will normally fail, but you are prompted if you trust the remote machine.
+
 
 
 ## Configure client
@@ -69,7 +89,8 @@ options `--restrict path`, `--restrict-read-only path`, or
 
 ## Client access
 
-The client accesses the server by SSH. For this, we need a passwordless SSH-keypair. It is generated on the client like this:
+The client accesses the server by SSH. For this, we need a
+passwordless SSH-keypair. It is generated on the client like this:
 
 ```bash
   ssh-keygen -t ed25519 -N '' -f key_for_backup
@@ -96,12 +117,15 @@ This must be copied to the server, into the home directory of the user running t
 
 ### Configure ssh-access
 
+For each client machine you need one line in `~rdiffbackup/.ssh/authorized_keys`:
 ```bash
-command="/var/rdiffbackup/rdb3/rdbs machine1",no-port-forwarding,no-x11-forwarding,no-agent-forwarding ssh-ed25519 AAAAC...7N user@machine
+command="/var/rdiffbackup/rdb3/rdbs machine1",no-port-forwarding,no-x11-forwarding,no-agent-forwarding ssh-ed25519 AAAAC...7N user@machine1
 ```
+This is mainly the content of `key_for_backup.pub`, with some items
+prepended. The enables a restricted ssh-access, where the given
+command is spawned on login. The command must be the path to `rdbs` and a
+machine-tag.
 
-This restricts access to only running the Python script `rdbs` and
-disallows any port forwarding. This is about as save as it can get.
 
 ### Configure repository and config-file
 
@@ -115,7 +139,7 @@ repository where all backups are stored.
 [DEFAULT]
 repo1    = /media/disk/rbackup
 # Machine names
-[machine]
+[machine1]
 repository      =  %(repo1)s/machine1/
 #newsubsok = True
 [anothermachine]
