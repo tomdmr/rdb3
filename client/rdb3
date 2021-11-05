@@ -188,7 +188,7 @@ for job in jobs:
             break
         else:
             # add to opts
-            lopts += ' ' + val
+            lopts += ' ' + val.replace("\n", " ");
             i += 1
     #
     # run pre-job
