@@ -11,7 +11,7 @@ repository image to cloud storage.
 
 Because I like it. It's main feature is that it stores
 backward-deltas. This means, cleaning out old backups is simple. The
-main scenario for restore is emergency, where I want my lates version
+main scenario for restore is emergency, where I want my latest version
 back.
 
 The second feature I really like is the built-in client-server
