@@ -5,41 +5,49 @@ from datetime import datetime
 
 import sys
 import os
+import logging
+
+myloc  = os.path.dirname(os.path.realpath(__file__))
+logger = logging.getLogger(__name__)
+FORMAT = '%(asctime)s:  %(message)s'
+logging.basicConfig(filename=myloc + 'myapp.log',
+                    level=logging.INFO,
+                    format=FORMAT)
+logger.info("starting rdbs")
 
 try:
     #print(sys.argv[1])
     hname = sys.argv[1]
     pass
 except:
-    print( "No hostname given. Failing")
+    logger.error("No hostname given. Failing")
     exit
-
-myloc = os.path.dirname(os.path.realpath(__file__))
+#
+logger.info("Connect from %s", hname)
+#
 # instantiate
 config = ConfigParser()
 # parse existing file
 config.read(myloc+'/rdb_server.ini')
-
+#
 try:
     hx   = config[hname]
     repo = hx.get('repository')
     # Fix to allow a different version of rdiff-backup as per ini-file
     RDB  = hx.get('rdiff-backup', '/usr/bin/rdiff-backup')
 except:
-    print("No config found for host ", hname)
+    logging.error("No config found for host %s", hname)
     exit
 
+logger.debug("using RDB=%s", RDB)
 newsubsok = hx.getboolean('newsubsok', fallback=False)
 
 args = os.environ['SSH_ORIGINAL_COMMAND'].split()
-#with open('cmdlog','a') as f:
-#    f.write('%s: Called with %s\n' % (datetime.now(), os.environ['SSH_ORIGINAL_COMMAND']))
-#    f.close()
-#
-# Check all allowed commands
-#
+logger.debug("Called with %s", os.environ['SSH_ORIGINAL_COMMAND'] )
+
 if(args[0] == 'repo'):
     # Request for repository
+    # Yes, print.
     print( repo )
 elif(args[0]=='rdiff-backup'):
     # Old style start
@@ -56,7 +64,7 @@ elif(args[0] == 'test'):
     # I wonder if this can turn into a security flaw.
     L = [ RDB ]
     L.append('--server')
-    #print(L)
+    logger.info("Testing: %s", ' '.join(L))
     os.execv(L[0], L)
 elif(args[0] == 'backup'):
     L = [ RDB ]
@@ -66,6 +74,7 @@ elif(args[0] == 'backup'):
     else:
         L.append('--restrict-update-only')
     L.append(repo)
+    logger.info("Backup: %s", ' '.join(L))
     os.execv(L[0], L)
 elif(args[0] == 'verify') or (args[0]=='restore'):
     # print('backup request')
